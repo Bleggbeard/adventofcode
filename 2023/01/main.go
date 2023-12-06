@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
-func getAdder() func (int) int {
+func getAdder() func(int) int {
 	sum := 0
 	return func(i int) int {
 		sum += i
@@ -16,7 +18,8 @@ func getAdder() func (int) int {
 	}
 }
 
-func findFirstDigit(s string, c chan string) {
+func findFirstDigit(line string, c chan string) {
+	s := fwdReplacer.Replace(line)
 	r := []rune(s)
 	for i := 0; i < len(r); i++ {
 		if unicode.IsDigit(r[i]) {
@@ -28,9 +31,11 @@ func findFirstDigit(s string, c chan string) {
 	c <- ""
 }
 
-func findLastDigit(s string, c chan string) {
-	r := []rune(s)
-	for i := len(r) - 1; i >= 0; i-- {
+func findLastDigit(line string, c chan string) {
+	s := Reverse(line)
+	revS := revReplacer.Replace(s)
+	r := []rune(revS)
+	for i := 0; i < len(r); i++ {
 		if unicode.IsDigit(r[i]) {
 			c <- string(r[i])
 			break
@@ -40,8 +45,48 @@ func findLastDigit(s string, c chan string) {
 	c <- ""
 }
 
+func Reverse(s string) string {
+	if !utf8.ValidString(s) {
+		return s
+	}
+	r := []rune(s)
+
+	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
+		r[i], r[j] = r[j], r[i]
+	}
+	return string(r)
+}
+
+var fwdReplacer = strings.NewReplacer(
+	"one", "1",
+	"two", "2",
+	"three", "3",
+	"four", "4",
+	"five", "5",
+	"six", "6",
+	"seven", "7",
+	"eight", "8",
+	"nine", "9",
+)
+
+var revReplacer = strings.NewReplacer(
+	Reverse("one"), "1",
+	Reverse("two"), "2",
+	Reverse("three"), "3",
+	Reverse("four"), "4",
+	Reverse("five"), "5",
+	Reverse("six"), "6",
+	Reverse("seven"), "7",
+	Reverse("eight"), "8",
+	Reverse("nine"), "9",
+)
+
+func convertNumbersToInts(line string) string {
+	return fwdReplacer.Replace(line)
+}
+
 func main() {
-	if (len(os.Args) != 2) {
+	if len(os.Args) != 2 {
 		fmt.Println("Usage: something <filename>")
 		os.Exit(1)
 	}
@@ -77,7 +122,7 @@ func main() {
 		}
 
 		adder(num)
-
 	}
+
 	fmt.Printf("%d\n", adder(0))
 }
