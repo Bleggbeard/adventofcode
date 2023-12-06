@@ -1,8 +1,13 @@
+BINARY_NAME=dayone.out
 test: build
-	./dayone test.txt
+	./${BINARY_NAME} test.txt
 
 run: build
-	./dayone input.txt
+	./${BINARY_NAME} input.txt
 
 build:
-	go build
+	go build -o ${BINARY_NAME} main.go
+
+clean:
+	go clean
+	rm ${BINARY_NAME}
