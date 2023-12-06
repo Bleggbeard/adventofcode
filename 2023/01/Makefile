@@ -1,4 +1,4 @@
-BINARY_NAME=dayone.out
+BINARY_NAME=aoc.out
 test: build
 	./${BINARY_NAME} test.txt
 
