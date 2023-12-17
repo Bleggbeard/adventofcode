@@ -36,7 +36,10 @@ func main() {
 	scanner := bufio.NewScanner(f)
 
 	adder := getAdder()
+	cardNum := 1
+	cardAmounts := make(map[int]int)
 	for scanner.Scan() {
+		cardAmounts[cardNum]++
 		line := scanner.Text()
 
 		matches := cardRE.FindStringSubmatch(line)
@@ -57,16 +60,16 @@ func main() {
 		for _, myNum := range chosen {
 			if myNumber, err := strconv.Atoi(myNum); err == nil {
 				if winningMap[myNumber] {
-					if points == 0 {
-						points = 1
-					} else {
-						points = points * 2
-					}
+					points++
 				}
 			}
 		}
 
-		adder(points)
+		adder(cardAmounts[cardNum])
+		for i := 1; i <= points; i++ {
+			cardAmounts[cardNum+i] += cardAmounts[cardNum]
+		}
+		cardNum++
 	}
 
 	fmt.Printf("Sum: %d\n", adder(0))
