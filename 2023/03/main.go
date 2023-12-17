@@ -36,13 +36,13 @@ func extractNumber(num string, topLeft position, bottomRight position) *schemati
 }
 
 var partCandidates = make([]schematicNumber, 0)
-var symbolPositions [][]bool;
+var symbolPositions [][]rune;
 
 func parseLine(line string, row int) {
 	num := ""
 	startIndex := -1
 
-	symbols := make([]bool, len(line))
+	symbols := make([]rune, len(line))
 
 	for column, char := range []rune(line) {
 		if unicode.IsDigit(char) {
@@ -59,7 +59,7 @@ func parseLine(line string, row int) {
 				num = ""
 			}
 			if char != '.' {
-				symbols[column] = true
+				symbols[column] = char
 			}
 		}
 	}
@@ -90,6 +90,7 @@ func main() {
 	scanner := bufio.NewScanner(f)
 
 	adder := getAdder()
+	gearAdder := getAdder()
 	row := 0
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -99,6 +100,8 @@ func main() {
 		row++
 	}
 
+	gearCandidates := make(map[string][]int)
+
 	OuterLoop:
 	for _, candidate := range partCandidates {
 		minCol := int(math.Max(0, float64(candidate.topLeft.x)))
@@ -106,37 +109,35 @@ func main() {
 		maxCol := int(math.Min(float64(len(symbolPositions) - 1), float64(candidate.bottomRight.x)))
 		maxRow := int(math.Min(float64(len(symbolPositions) - 1), float64(candidate.bottomRight.y)))
 
-		// fmt.Printf("Checking %d from {%d, %d} to {%d, %d}\n", candidate.value, minCol, minRow, maxCol, maxRow)
 		for x := minCol; x <= maxCol; x++ {
 			for y := minRow; y <= maxRow; y++ {
-				// fmt.Printf("Checking [%d][%d]\n", y, x)
-				if symbolPositions[y][x] {
+				if symbol := symbolPositions[y][x]; symbol != 0 {
 					adder(candidate.value)
-					fmt.Printf("%d (%v, %v) is a part number.\n", candidate.value, candidate.topLeft, candidate.bottomRight)
+					if symbol == '*' {
+						coords := fmt.Sprintf("%d.%d", y, x)
+						gearCandidates[coords] = append(gearCandidates[coords], candidate.value)
+					}
 					continue OuterLoop
 				}
 			}
 		}
-		fmt.Printf("%d (%v, %v) is NOT a part number.\n", candidate.value, candidate.topLeft, candidate.bottomRight)
+	}
+
+	for _, gears := range gearCandidates {
+		if len(gears) == 2 {
+			gearAdder(gears[0] * gears[1])
+		}
 	}
 
 	fmt.Printf("Sum: %d\n", adder(0))
-	fmt.Printf("Rows: %d\n", row)
-	// for y, symbolRow := range symbolPositions {
-	// 	for x, symbol := range symbolRow {
-	// 		if symbol {
-	// 			fmt.Printf("[%d][%d]", x, y)
-	// 		}
-	// 	}
-	// 	fmt.Printf("\n")
-	// }
+	fmt.Printf("Gear ratio sum: %d\n", gearAdder(0))
 	// for row, symbolRow := range symbolPositions {
 	// 	fmt.Printf("%d: ", row)
 	// 	for _, symbol := range symbolRow {
-	// 		if symbol {
-	// 			fmt.Printf("x")
+	// 		if symbol == 0 {
+	// 			fmt.Printf(" ")
 	// 		} else {
-	// 			fmt.Printf(".")
+	// 			fmt.Printf("%s", string(symbol))
 	// 		}
 	// 	}
 	// 	fmt.Printf("\n")
