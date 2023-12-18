@@ -23,10 +23,14 @@ const DST_INDEX = 0
 const SRC_INDEX = 1
 const RANGE_INDEX = 2
 
+const SEED_START_INDEX = 1
+const SEED_RANGE_INDEX = 2
+
 const MAP_SRC_INDEX = 1
 const MAP_DST_INDEX = 2
 
 var seedsRE = regexp.MustCompile("^seeds: (.*)$")
+var seedRangeRE = regexp.MustCompile("(\\d+) (\\d+)")
 var mapRE = regexp.MustCompile("^([a-z]*)-to-([a-z]*) map:")
 
 type mapping struct {
@@ -51,7 +55,7 @@ type conversionList struct {
 
 func (c conversionList) getOutput(i int) int {
 	for _, conv := range c.conversions {
-		if conv.start <= i && i <= conv.end {
+		if conv.start <= i && i < conv.end {
 			return i + conv.diff
 		}
 	}
@@ -62,16 +66,32 @@ func isMapping(line string) bool {
 	return unicode.IsDigit([]rune(line)[0])
 }
 
-func getLocation(maps map[string]mapping, v int, m string) int {
-	curMap, ok := maps[m]
+func getLocation(v int, m string) int {
+	curMap, ok := almanacMappings[m]
 	if !ok {
 		return v
 	}
 
-	newValue := maps[m].mappings.getOutput(v)
+	newValue := almanacMappings[m].mappings.getOutput(v)
 
-	return getLocation(maps, newValue, curMap.destination)
+	return getLocation(newValue, curMap.destination)
 }
+
+func calcLocForRange(r []int, c chan int) {
+	minLocation := math.MaxInt
+	fmt.Printf("Checking %d seeds, starting from %d...\n", r[1], r[0])
+	for i := r[0]; i < r[0] + r[1]; i++ {
+		location := getLocation(i, "seed")
+		if location < minLocation {
+			fmt.Printf("New location found for start seed %d: %d\n", r[0], location)
+			minLocation = location
+		}
+	}
+	fmt.Printf("Location for start seed %d: %d\n", r[0], minLocation)
+	c <- minLocation
+}
+
+var almanacMappings = make(map[string]mapping)
 
 func main() {
 	if len(os.Args) != 2 {
@@ -89,9 +109,8 @@ func main() {
 
 	scanner := bufio.NewScanner(f)
 
-	var seeds []string
+	var seeds [][]int
 	var currentMap *mapping
-	almanacMappings := make(map[string]mapping)
 
 	adder := getAdder()
 	for scanner.Scan() {
@@ -121,7 +140,12 @@ func main() {
 			currentMap.mappings.conversions = append(currentMap.mappings.conversions, conv)
 
 		} else if seedLine := seedsRE.FindStringSubmatch(line); seedLine != nil {
-			seeds = strings.Split(seedLine[1], " ")
+			m := seedRangeRE.FindAllStringSubmatch(seedLine[1], -1)
+			for _, seedRange := range m {
+				seedStart, _ := strconv.Atoi(seedRange[SEED_START_INDEX])
+				seedCount, _ := strconv.Atoi(seedRange[SEED_RANGE_INDEX])
+				seeds = append(seeds, []int{seedStart, seedCount})
+			}
 		} else if mapLine := mapRE.FindStringSubmatch(line); mapLine != nil {
 			if currentMap != nil {
 				almanacMappings[currentMap.indexName()] = *currentMap
@@ -141,18 +165,16 @@ func main() {
 	}
 	almanacMappings[currentMap.indexName()] = *currentMap
 
-	for _, v := range almanacMappings {
-		fmt.Printf("%s -> %s\n", v.source, v.destination)
+	c := make(chan int)
+	minLocation := math.MaxInt
+	for _, seedRange := range seeds {
+		go calcLocForRange(seedRange, c)
 	}
 
-	minLocation := math.MaxInt
-	for _, seed := range seeds {
-		if s, err := strconv.Atoi(seed); err == nil {
-			location := getLocation(almanacMappings, s, "seed")
-			fmt.Printf("Seed #%d: %d\n", s, location)
-			if location < minLocation {
-				minLocation = location
-			}
+	for range seeds {
+		location := <-c
+		if (location < minLocation) {
+			minLocation = location
 		}
 	}
 
