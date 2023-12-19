@@ -28,7 +28,7 @@ var whitespaceRE = regexp.MustCompile("\\s+")
 
 func findFirstStrategy(t int, d int, c chan int) {
 	for i := 1; i < t; i++ {
-		if i * (t - i) > d {
+		if i*(t-i) > d {
 			c <- i
 			return
 		}
@@ -38,7 +38,7 @@ func findFirstStrategy(t int, d int, c chan int) {
 
 func findLastStrategy(t int, d int, c chan int) {
 	for i := t - 1; i > 0; i-- {
-		if i * (t - i) > d {
+		if i*(t-i) > d {
 			c <- i
 			return
 		}
@@ -73,20 +73,23 @@ func main() {
 		lineData := whitespaceRE.Split(line, -1)
 
 		textData := lineData[1:]
-		data := make([]int, 0)
+		num := ""
 		for _, text := range textData {
-			num, _ := strconv.Atoi(text)
-			data = append(data, num)
+			num += text
 		}
+		data, _ := strconv.Atoi(num)
 
 		if lineData[0] == "Time:" {
-			times = data
+			times = []int{data}
 		} else if lineData[0] == "Distance:" {
-			distances = data
+			distances = []int{data}
 		}
 
 		adder(len(line))
 	}
+
+	fmt.Printf("%#v\n", times)
+	fmt.Printf("%#v\n", distances)
 
 	for i := range times {
 		cf := make(chan int)
