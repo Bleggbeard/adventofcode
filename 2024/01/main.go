@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"slices"
 )
 
 func getAdder() func(int) int {
@@ -33,7 +32,7 @@ func main() {
 
 	adder := getAdder()
 	left := make([]int, 0)
-	right := make([]int, 0)
+	right := make(map[int]int, 0)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -47,15 +46,16 @@ func main() {
 		}
 
 		left = append(left, l)
-		right = append(right, r)
-		//TODO: Implement with binary tree or similar to increase performance
+
+		_, ok := right[r]
+		if !ok {
+			right[r] = 0
+		}
+		right[r]++
 	}
 
-	slices.Sort(left)
-	slices.Sort(right)
-
-	for i := range left {
-		adder(abs(left[i], right[i]))
+	for _, v := range left {
+		adder(v * right[v])
 	}
 
 	fmt.Printf("Sum: %d\n", adder(0))
