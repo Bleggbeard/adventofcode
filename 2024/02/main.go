@@ -47,6 +47,7 @@ func main() {
 func checkLevels(numbers []string) int {
 	prevNum := -1
 	prevDir := -2
+	foundBad := false
 
 	for _, nums := range numbers {
 		num, err := strconv.Atoi(nums)
@@ -58,14 +59,35 @@ func checkLevels(numbers []string) int {
 		if prevNum != -1 {
 			diff := num - prevNum
 			absDiff := abs(diff)
+			var dir int
 
-			if absDiff < 1 || absDiff > 3 {
-				return 0
+			if absDiff == 0 {
+				dir = 0
+			} else {
+				dir = diff / absDiff
 			}
 
-			dir := diff / absDiff
+			if absDiff < 1 || absDiff > 3 {
+				if foundBad {
+					return 0
+				} else {
+					foundBad = true
+					if prevDir != -2 {
+						prevDir = dir
+					}
+					prevNum = num
+					continue
+				}
+			}
+
 			if prevDir != -2 && dir != prevDir {
-				return 0
+				if foundBad {
+					return 0
+				} else {
+					foundBad = true
+					prevNum = num
+					continue
+				}
 			}
 
 			prevDir = dir
