@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 var mulRE = regexp.MustCompile("mul\\((\\d+),(\\d+)\\)")
@@ -32,18 +34,37 @@ func main() {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	in, err := io.ReadAll(f)
+	if err != nil {
+		fmt.Printf("Could not read input")
+		os.Exit(3)
+	}
+
+	repl := strings.NewReplacer("do()", "\ndo()\n", "don't()", "\ndon't()\n")
+	input := repl.Replace(string(in))
+
+	inr := strings.NewReader(input)
+	scanner := bufio.NewScanner(inr)
 
 	adder := getAdder()
+	mulEnabled := true
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		matches := mulRE.FindAllStringSubmatch(line, -1)
+		if line == "do()" {
+			mulEnabled = true
+		} else if line == "don't()" {
+			mulEnabled = false
+		}
 
-		for _, match := range matches {
-			l, _ := strconv.Atoi(match[1])
-			r, _ := strconv.Atoi(match[2])
-			adder(l * r)
+		if mulEnabled {
+			matches := mulRE.FindAllStringSubmatch(line, -1)
+
+			for _, match := range matches {
+				l, _ := strconv.Atoi(match[1])
+				r, _ := strconv.Atoi(match[2])
+				adder(l * r)
+			}
 		}
 	}
 
