@@ -10,25 +10,15 @@ import (
 
 type Character struct {
 	char  rune
-	left  Series
-	up    Series
-	right Series
-}
-
-type Series struct {
-	running bool
-	dir     rune
+	left  rune
+	right rune
 }
 
 func (c *Character) toString() string {
 	var sb strings.Builder
+	sb.WriteRune(c.left)
 	sb.WriteRune(c.char)
-	sb.WriteRune(c.stringifyBool(c.left.running, 'l'))
-	sb.WriteRune(c.getDirOutput(c.left.dir))
-	sb.WriteRune(c.stringifyBool(c.up.running, 'u'))
-	sb.WriteRune(c.getDirOutput(c.up.dir))
-	sb.WriteRune(c.stringifyBool(c.right.running, 'r'))
-	sb.WriteRune(c.getDirOutput(c.right.dir))
+	sb.WriteRune(c.right)
 
 	return sb.String()
 }
@@ -40,17 +30,15 @@ func (c *Character) stringifyBool(v bool, r rune) rune {
 	return r
 }
 
-func (c *Character) getDirOutput(dir rune) rune {
-	out := '.'
-
-	switch dir {
-	case 'f':
-		out = 'v'
-	case 'r':
-		out = '^'
+func getExpectedRune(i rune) rune {
+	switch i {
+	case 'M':
+		return 'S'
+	case 'S':
+		return 'M'
 	}
 
-	return out
+	return '.'
 }
 
 func getAdder() func(int) int {
@@ -61,7 +49,7 @@ func getAdder() func(int) int {
 	}
 }
 
-var characterMatrix [][]Character = make([][]Character, 4)
+var characterMatrix [][]*Character = make([][]*Character, 3)
 
 func main() {
 	if len(os.Args) != 2 {
@@ -83,105 +71,58 @@ func main() {
 	row := 0
 	for scanner.Scan() {
 		line := scanner.Text()
-		chars := make([]Character, len(line))
-
-		hXmas := strings.Count(line, "XMAS")
-		hSamx := strings.Count(line, "SAMX")
-		adder(hXmas + hSamx)
+		chars := make([]*Character, len(line))
 
 		for col, char := range line {
-			dir := '.'
-			if char == 'X' {
-				dir = 'f'
-			} else if char == 'S' {
-				dir = 'r'
-			}
-
-			left, up, right := Series{}, Series{}, Series{}
+			left, right, actualChar := '.', '.', char
 			if row > 0 {
-				uc := characterMatrix[(row-1)%4][col]
-				up.running = (uc.up.running || dir != '.') && isPreviousLetter(char, uc.char, uc.up.dir)
+				if col > 0 && col < len(line)-1 && char == 'A' {
+					pLeft := characterMatrix[(row-1)%3][col-1]
+					pRight := characterMatrix[(row-1)%3][col+1]
+					left = getExpectedRune(pRight.char)
+					right = getExpectedRune(pLeft.char)
 
-				if up.running && dir == '.' {
-					up.dir = uc.up.dir
-				}
-
-				if row > 2 && isLastLetter(char, uc.up.dir) && up.running {
-					adder(1)
-					if uc.up.dir == 'f' {
-						fmt.Printf("Found XMAS up at %d,%d\n", row, col)
-					} else if uc.up.dir == 'r' {
-						fmt.Printf("Found SAMX up at %d,%d\n", row, col)
-					}
-				}
-
-				if col > 0 {
-					lc := characterMatrix[(row-1)%4][col-1]
-					left.running = (lc.left.running || dir != '.') && isPreviousLetter(char, lc.char, lc.left.dir)
-
-					if left.running && dir == '.' {
-						left.dir = lc.left.dir
-					}
-
-					if row > 2 && col > 2 && isLastLetter(char, lc.left.dir) && left.running {
-						adder(1)
-						if lc.left.dir == 'f' {
-							fmt.Printf("Found XMAS left at %d,%d\n", row, col)
-						} else if lc.left.dir == 'r' {
-							fmt.Printf("Found SAMX left at %d,%d\n", row, col)
-						}
+					if left == '.' || right == '.' {
+						left = '.'
+						right = '.'
 					}
 				}
 				if col < len(line)-1 {
-					rc := characterMatrix[(row-1)%4][col+1]
-					right.running = (rc.right.running || dir != '.') && isPreviousLetter(char, rc.char, rc.right.dir)
-
-					if right.running && dir == '.' {
-						right.dir = rc.right.dir
+					pRight := characterMatrix[(row-1)%3][col+1]
+					if pRight.left != char {
+						pRight.right = '.'
 					}
-
-
-					if row > 2 && col < len(line)-3 && isLastLetter(char, rc.right.dir) && right.running {
+				}
+				if col > 1 {
+					pLeft := characterMatrix[(row-1)%3][col-1]
+					if pLeft.right == char {
 						adder(1)
-						if rc.right.dir == 'f' {
-							fmt.Printf("Found XMAS right at %d,%d\n", row, col)
-						} else if rc.right.dir == 'r' {
-							fmt.Printf("Found SAMX right at %d,%d\n", row, col)
-						}
+						fmt.Printf("Found X-MAS at %d,%d\n", row-1, col-1)
 					}
 				}
 			}
 
-			if dir != '.' {
-				left.dir = dir
-				up.dir = dir
-				right.dir = dir
-
-				left.running = true
-				up.running = true
-				right.running = true
-			}
-
-			chars[col] = Character{char, left, up, right}
+			chars[col] = &Character{actualChar, left, right}
 		}
 
-		characterMatrix[row%4] = chars
+		characterMatrix[row%3] = chars
 
 		printMatrix()
 
 		row++
 	}
 
+	// 2035 is too high
+	// 2023 is too high
+	// 835 is too low
 	fmt.Printf("Sum: %d\n", adder(0))
 }
 
 func isPreviousLetter(cur, prev, dir rune) bool {
 	ret := false
 	switch cur {
-	case 'X':
-		ret = prev == 'M' && dir == 'r'
 	case 'M':
-		ret = (prev == 'X' && dir == 'f') || (prev == 'A' && dir == 'r')
+		ret = (prev == 'A' && dir == 'r')
 	case 'A':
 		ret = (prev == 'M' && dir == 'f') || (prev == 'S' && dir == 'r')
 	case 'S':
@@ -196,13 +137,13 @@ func isLastLetter(c, dir rune) bool {
 	case 'f':
 		return c == 'S'
 	case 'r':
-		return c == 'X'
+		return c == 'M'
 	}
 	return false
 }
 
 func printMatrix() {
-	for i := range 4 {
+	for i := range 3 {
 		for _, v := range characterMatrix[i] {
 			fmt.Printf("%s ", v.toString())
 		}
