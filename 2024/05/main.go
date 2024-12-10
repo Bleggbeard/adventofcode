@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -34,6 +35,7 @@ func main() {
 
 	adder := getAdder()
 	ruleset := make(map[string][]string, 0)
+	var comparator func(l, r string) int = nil
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -41,13 +43,15 @@ func main() {
 		if len(rule) == 2 {
 			processRule(rule, ruleset)
 		} else {
+			if comparator == nil {
+				comparator = getComparator(ruleset)
+			}
 			manual := strings.Split(line, ",")
 			if len(manual) > 1 {
-				adder(processManual(manual, ruleset))
+				adder(processManual(manual, comparator))
 			}
 		}
 	}
-			fmt.Printf("Ruleset: %+v\n", ruleset)
 
 	fmt.Printf("Sum: %d\n", adder(0))
 }
@@ -61,26 +65,44 @@ func processRule(rule []string, ruleset map[string][]string) {
 	ruleset[prev] = append(ruleset[prev], after)
 }
 
-func processManual(manual []string, ruleset map[string][]string) int {
-	toCheck := make([]string, 0)
-	fmt.Printf("Manual: %+v\n", manual)
-	for _, entry := range manual {
-		for _, c := range toCheck {
-			for _, invalid := range ruleset[entry] {
-				fmt.Printf("Entry: %s, C: %s, Inv: %s\n", entry, c, invalid)
-				if c == invalid {
-					return 0
-				}
-			}
-		}
-		toCheck = append(toCheck, entry)
-		fmt.Printf("toCheck (%d): %+v\n", len(toCheck), toCheck)
+func processManual(manual []string, comparator func(l, r string) int) int {
+	orderedManual := slices.SortedFunc(slices.Values(manual), comparator)
+	fmt.Printf("Manual:  %+v\n", manual)
+	fmt.Printf("Ordered: %+v\n", orderedManual)
+	if (isSameManual(manual, orderedManual)) {
+		return 0
 	}
-	middle := manual[(len(manual) - 1) / 2]
+	middle := orderedManual[(len(manual) - 1) / 2]
 	ret, err := strconv.Atoi(middle)
 	if err != nil {
 		fmt.Printf("Could not parse %s\n", middle)
 		return 0
 	}
 	return ret
+}
+
+func getComparator(ruleset map[string][]string) func(l, r string) int {
+	return func(l, r string) int {
+		if l == r {
+			return 0
+		}
+
+		for _, b := range ruleset[l] {
+			if r == b {
+				return -1
+			}
+		}
+
+		return 1
+	}
+}
+
+func isSameManual(l, r []string) bool {
+	for i := range l {
+		if l[i] != r[i] {
+			return false
+		}
+	}
+
+	return true
 }
